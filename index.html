@@ -1,132 +1,191 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GenUI 验证页面</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }
-        .container { border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9f9f9; }
-        .input-group { margin-bottom: 20px; }
-        input[type="text"] { width: 70%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
-        button:hover { background: #0056b3; }
-        .ui-render-area { margin-top: 30px; border-top: 2px solid #007bff; padding-top: 20px; }
-        .component-item { margin-bottom: 15px; padding: 10px; background: white; border: 1px shadow #eee; border-radius: 4px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; }
-        select, input[type="range"] { width: 100%; }
-        .value-display { font-size: 0.9em; color: #666; }
+      body {
+        font-family: sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+        line-height: 1.6;
+      }
+      .container {
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 8px;
+        background: #f9f9f9;
+      }
+      .input-group {
+        margin-bottom: 20px;
+      }
+      input[type="text"] {
+        width: 70%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        padding: 10px 20px;
+        cursor: pointer;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      .ui-render-area {
+        margin-top: 30px;
+        border-top: 2px solid #007bff;
+        padding-top: 20px;
+      }
+      .component-item {
+        margin-bottom: 15px;
+        padding: 10px;
+        background: white;
+        border: 1px shadow #eee;
+        border-radius: 4px;
+      }
+      label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      select,
+      input[type="range"] {
+        width: 100%;
+      }
+      .value-display {
+        font-size: 0.9em;
+        color: #666;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>GenUI 后端验证</h1>
     <div class="container">
-        <div class="input-group">
-            <input type="text" id="userQuery" placeholder="输入意图，例如：我想买一台电脑，预算在5000到10000之间">
-            <button onclick="analyzeIntent()">分析意图</button>
-        </div>
+      <div class="input-group">
+        <input
+          type="text"
+          id="userQuery"
+          placeholder="输入意图，例如：我想买一台电脑，预算在5000到10000之间"
+        />
+        <button onclick="analyzeIntent()">分析意图</button>
+      </div>
 
-        <div id="uiArea" class="ui-render-area">
-            <h3>生成的 UI 组件将显示在这里</h3>
-            <div id="componentsContainer"></div>
-        </div>
+      <div id="uiArea" class="ui-render-area">
+        <h3>生成的 UI 组件将显示在这里</h3>
+        <div id="componentsContainer"></div>
+      </div>
     </div>
 
     <script>
-        const API_BASE = "http://localhost:8000/api/v1";
+      const API_BASE = "http://localhost:8000/api/v1";
 
-        async function analyzeIntent() {
-            const query = document.getElementById('userQuery').value;
-            if (!query) return alert("请输入内容");
+      async function analyzeIntent() {
+        const query = document.getElementById("userQuery").value;
+        if (!query) return alert("请输入内容");
 
-            const requestData = { query: query };
-            
-            // 打印请求到控制台
-            console.log("%c [API Request] POST /analyze", "color: #007bff; font-weight: bold", requestData);
+        const requestData = { query: query };
 
-            try {
-                const response = await fetch(`${API_BASE}/analyze`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestData)
-                });
+        // 打印请求到控制台
+        console.log(
+          "%c [API Request] POST /analyze",
+          "color: #007bff; font-weight: bold",
+          requestData,
+        );
 
-                const data = await response.json();
-                
-                // 打印响应到控制台
-                console.log("%c [API Response] /analyze", "color: #28a745; font-weight: bold", data);
+        try {
+          const response = await fetch(`${API_BASE}/analyze`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestData),
+          });
 
-                renderUI(data.components, data.message);
-            } catch (error) {
-                console.error("请求失败:", error);
-            }
+          const data = await response.json();
+
+          // 打印响应到控制台
+          console.log(
+            "%c [API Response] /analyze",
+            "color: #28a745; font-weight: bold",
+            data,
+          );
+
+          renderUI(data.components, data.message);
+        } catch (error) {
+          console.error("请求失败:", error);
+        }
+      }
+
+      function renderUI(components, message) {
+        const container = document.getElementById("componentsContainer");
+        container.innerHTML = "";
+
+        if (message) {
+          const msgDiv = document.createElement("div");
+          msgDiv.style.padding = "15px";
+          msgDiv.style.background = "#e9ecef";
+          msgDiv.style.borderRadius = "4px";
+          msgDiv.style.marginBottom = "20px";
+          msgDiv.innerText = message;
+          container.appendChild(msgDiv);
         }
 
-        function renderUI(components, message) {
-            const container = document.getElementById('componentsContainer');
-            container.innerHTML = '';
+        if (!components || components.length === 0) {
+          if (!message) {
+            container.innerText =
+              "没有收到任何反馈 (No components and no message)";
+          }
+          return;
+        }
 
-            if (message) {
-                const msgDiv = document.createElement('div');
-                msgDiv.style.padding = "15px";
-                msgDiv.style.background = "#e9ecef";
-                msgDiv.style.borderRadius = "4px";
-                msgDiv.style.marginBottom = "20px";
-                msgDiv.innerText = message;
-                container.appendChild(msgDiv);
-            }
+        components.forEach((comp) => {
+          const div = document.createElement("div");
+          div.className = "component-item";
 
-            if (!components || components.length === 0) {
-                if (!message) {
-                    container.innerText = "没有收到任何反馈 (No components and no message)";
-                }
-                return;
-            }
+          const label = document.createElement("label");
+          label.innerText = comp.label;
+          div.appendChild(label);
 
-            components.forEach(comp => {
-                const div = document.createElement('div');
-                div.className = 'component-item';
-                
-                const label = document.createElement('label');
-                label.innerText = comp.label;
-                div.appendChild(label);
-
-                if (comp.type === 'Select') {
-                    const select = document.createElement('select');
-                    comp.options.forEach(opt => {
-                        const o = document.createElement('option');
-                        o.value = opt.value;
-                        o.text = opt.label;
-                        select.appendChild(o);
-                    });
-                    div.appendChild(select);
-                } 
-                else if (comp.type === 'RangeSlider') {
-                    const slider = document.createElement('input');
-                    slider.type = 'range';
-                    slider.min = comp.min;
-                    slider.max = comp.max;
-                    slider.step = comp.step || 1;
-                    
-                    const valDisplay = document.createElement('div');
-                    valDisplay.className = 'value-display';
-                    valDisplay.innerText = `当前值: ${comp.min} ${comp.unit || ''}`;
-                    
-                    slider.oninput = (e) => {
-                        valDisplay.innerText = `当前值: ${e.target.value} ${comp.unit || ''}`;
-                    };
-
-                    div.appendChild(slider);
-                    div.appendChild(valDisplay);
-                } else {
-                    const p = document.createElement('p');
-                    p.innerText = `组件类型 ${comp.type} 暂未在此 Demo 中渲染`;
-                    div.appendChild(p);
-                }
-
-                container.appendChild(div);
+          if (comp.type === "Select") {
+            const select = document.createElement("select");
+            comp.options.forEach((opt) => {
+              const o = document.createElement("option");
+              o.value = opt.value;
+              o.text = opt.label;
+              select.appendChild(o);
             });
-        }
+            div.appendChild(select);
+          } else if (comp.type === "RangeSlider") {
+            const slider = document.createElement("input");
+            slider.type = "range";
+            slider.min = comp.min;
+            slider.max = comp.max;
+            slider.step = comp.step || 1;
+
+            const valDisplay = document.createElement("div");
+            valDisplay.className = "value-display";
+            valDisplay.innerText = `当前值: ${comp.min} ${comp.unit || ""}`;
+
+            slider.oninput = (e) => {
+              valDisplay.innerText = `当前值: ${e.target.value} ${comp.unit || ""}`;
+            };
+
+            div.appendChild(slider);
+            div.appendChild(valDisplay);
+          } else {
+            const p = document.createElement("p");
+            p.innerText = `组件类型 ${comp.type} 暂未在此 Demo 中渲染`;
+            div.appendChild(p);
+          }
+
+          container.appendChild(div);
+        });
+      }
     </script>
-</body>
+  </body>
 </html>

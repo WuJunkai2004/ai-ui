@@ -3,6 +3,7 @@
 ## 1. Project Overview
 We are building an AI Agent backend that bridges the gap between vague user intents and precise execution.
 **Core Philosophy:** Users cannot always prompt perfectly. The system interprets vague requests, generates a dynamic, structured UI (Generative UI) to collect missing data, and then executes tasks using the Model Context Protocol (MCP).
+The project is done in Python using FastAPI and OpenAI's LLMs, with MCP for tool integration.
 
 ## 2. Tech Stack & Environment
 - **Language:** Python 3.10+

@@ -2,19 +2,34 @@
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "."
-      ]
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./tempData"]
     },
-    "git": {
-      "command": "uvx",
+    "amap-maps": {
+      "command": "npx",
+      "args": ["-y", "@amap/amap-maps-mcp-server"],
+      "env": {
+        "AMAP_MAPS_API_KEY": "${AMAP_MAPS_API_KEY}"
+      }
+    },
+    "bocha-search-mcp": {
+      "command": "uv",
       "args": [
-        "mcp-server-git",
-        "--repository",
-        "."
-      ]
+        "--directory",
+        "./tools/bocha-search-mcp",
+        "run",
+        "bocha-search-mcp"
+      ],
+      "env": {
+        "BOCHA_API_KEY": "${BOCHA_API_KEY}"
+      }
+    },
+    "mcp-run-python": {
+      "command": "uvx",
+      "args": ["mcp-run-python", "stdio"]
+    },
+    "fetcher": {
+      "command": "npx",
+      "args": ["-y", "fetcher-mcp"]
     }
   }
 }

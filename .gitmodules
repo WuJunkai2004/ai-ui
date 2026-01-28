@@ -1,0 +1,3 @@
+[submodule "tools/bocha-search-mcp"]
+	path = tools/bocha-search-mcp
+	url = https://github.com/BochaAI/bocha-search-mcp
