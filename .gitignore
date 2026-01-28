@@ -10,3 +10,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Configuration files
+config.toml
+.env
