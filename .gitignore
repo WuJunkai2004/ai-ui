@@ -14,3 +14,7 @@ wheels/
 # Configuration files
 config.toml
 .env
+
+# Frontend Static Assets
+static/*
+!static/index.html

@@ -3,6 +3,7 @@ import json
 from openai import OpenAI
 
 from app.core.config import settings
+from app.core.logging import logger
 from app.models.ui_protocol import UIResponse
 
 
@@ -46,7 +47,6 @@ class OpenAIService:
             )
 
             content = response.choices[0].message.content
-            print(f"DEBUG: Raw LLM content: {content!r}")
 
             if not content:
                 raise ValueError("LLM returned empty content")
@@ -72,12 +72,12 @@ class OpenAIService:
                 if json_match:
                     content = json_match.group(0)
 
-            print(f"DEBUG: Cleaned content for parsing: {content!r}")
+            logger.debug(f"DEBUG: Cleaned content for parsing: {content!r}")
             data = json.loads(content)
             return UIResponse(**data)
 
         except Exception as e:
-            print(f"Error in LLM analysis: {e}")
+            logger.error(f"Error in LLM analysis: {e}")
             # Fallback or re-raise
             raise e
 

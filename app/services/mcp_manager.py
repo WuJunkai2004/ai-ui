@@ -9,6 +9,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from app.core.config import settings
+from app.core.logging import logger
 
 # Load environment variables from .env file
 load_dotenv()
@@ -28,7 +29,9 @@ class MCPClientService:
         """
         config_path = settings.mcp_config_path
         if not os.path.exists(config_path):
-            print(f"MCP config not found at {config_path}, skipping MCP connection.")
+            logger.warning(
+                f"MCP config not found at {config_path}, skipping MCP connection."
+            )
             return
 
         with open(config_path, "r", encoding="utf-8") as f:
@@ -53,7 +56,7 @@ class MCPClientService:
                     resolved_command = shutil.which("npx.cmd")
 
                 if not resolved_command:
-                    print(
+                    logger.warning(
                         f"Warning: Command '{command}' not found in PATH for server '{name}'."
                     )
                     # We continue anyway, hoping the system can resolve it or it's an absolute path
@@ -92,10 +95,10 @@ class MCPClientService:
                 await session.initialize()
 
                 self.sessions[name] = session
-                print(f"Successfully connected to MCP Server: {name}")
+                logger.info(f"Successfully connected to MCP Server: {name}")
 
             except Exception as e:
-                print(f"Failed to connect to MCP Server {name}: {e}")
+                logger.error(f"Failed to connect to MCP Server {name}: {e}")
 
     async def get_available_tools(self) -> str:
         """
@@ -121,7 +124,7 @@ class MCPClientService:
                     descriptions.append(desc)
 
             except Exception as e:
-                print(f"Error listing tools for {server_name}: {e}")
+                logger.error(f"Error listing tools for {server_name}: {e}")
 
         if not descriptions:
             return "No tools available."
