@@ -23,9 +23,18 @@
         "BOCHA_API_KEY": "${BOCHA_API_KEY}"
       }
     },
-    "mcp-run-python": {
+    "mcp-python-interpreter": {
       "command": "uvx",
-      "args": ["mcp-run-python", "stdio"]
+      "args": [
+        "mcp-python-interpreter",
+        "--dir",
+        "./tempData",
+        "--python-path",
+        "python"
+      ],
+      "env": {
+        "MCP_ALLOW_SYSTEM_ACCESS": "0"
+      }
     },
     "fetcher": {
       "command": "npx",
