@@ -9,59 +9,62 @@ The project is done in Python using FastAPI and OpenAI's LLMs, with MCP for tool
 - **Language:** Python 3.10+
 - **Package Manager:** `uv`
 - **Web Framework:** FastAPI
-- **LLM Provider:** OpenAI API (gpt-4o or compatible)
+- **Database:** SQLite (via `peewee` ORM)
+- **LLM Provider:** OpenAI API (gpt-4o or compatible / DeepSeek)
 - **Core Protocol:** MCP (Model Context Protocol) - Python SDK
 - **Architecture pattern:** Clean Architecture / Service-Repository pattern.
 
 ## 3. Core Workflow (The "Three-Step Loop")
 
 ### Step 1: Clarification (Intent Analysis)
-- Input: User's natural language query (e.g., "Plan a trip to SF").
-- Process: LLM analyzes the query to identify missing information.
-- Output: A structured JSON Schema defining specific UI components to render on the frontend.
+- Input: User's query + Chat History + Authentication.
+- Process: LLM analyzes the query to identify missing information or answer directly.
+- Output: A structured `UIResponse` containing UI components OR a direct text answer (`message` field).
 
-### Step 2: Information Collection (Frontend - Out of Scope for now, but Backend must support it)
+### Step 2: Information Collection
 - The frontend renders the components defined in Step 1.
 - User interacts and submits structured data.
 
 ### Step 3: Execution (Orchestration)
-- Input: The structured data from Step 2 combined with original intent.
-- Process: The Backend acts as an **MCP Host**. It connects to available MCP Servers (e.g., Tools for Search, Maps, Booking).
+- Input: The structured data from Step 2 combined with original intent and Chat History.
+- Process: The Backend acts as an **MCP Host**. It connects to available MCP Servers.
 - Action: The LLM plans the execution path and calls MCP tools.
-- Output: Final result to the user.
+- Output: Final result to the user (automatically saved to history).
 
-## 4. Detailed Data Structures (Pydantic Models)
+## 4. System Components
 
-### 4.0 The AI configuration
-The configuration for the AI model and MCP integration is defined in `./config.toml`, You can read it directly using `tomli` package.
+### 4.1 Database Models
+- `User`: Handles authentication (Token-based) and user profile.
+- `Chat`: Represents a conversation session.
+- `Message`: Stores user queries, assistant responses (UI JSON or Text), and execution results.
 
-### 4.1 The UI Protocol
-We need a robust Pydantic model system to define the Generative UI elements. The `UIResponse` should contain a list of components.
-Supported Component Types:
-1.  `Input` (text fields)
-2.  `Select` (dropdowns)
-3.  `DatePicker` (or DateRangePicker)
-4.  `MultiSelect` (tags)
-5.  `Button` (confirmation/actions)
-6.  `MapPin` (location selection)
-7.  `RangeSlider` (for budgets, duration - `[min, max]`)
-8.  `VisualPicker` (for style preference - contains image URLs and values)
-9.  `Stepper` (for counts like number of people)
-10. `Switch` (boolean toggles)
+### 4.2 The UI Protocol
+Defined in `app/models/ui_protocol.py`.
+Supported Component Types: `Input`, `Select`, `DatePicker`, `MultiSelect`, `Button`, `MapPin`, `RangeSlider`, `VisualPicker`, `Stepper`, `Switch`.
+Response Format: `UIResponse(components=[...], message="...")`
 
-### 4.2 API Request/Response
-- `POST /api/v1/analyze`: Accepts `{ "query": str }`. Returns `UIResponse`.
-- `POST /api/v1/execute`: Accepts `{ "original_query": str, "form_data": Dict[str, Any] }`. Returns final execution result.
+### 4.3 API Endpoints
+Base URL: `/api/v1`
+**Authentication:** Required for all endpoints (except `/login`). Header: `Authorization: <token>`
 
-## 5. MCP Integration (Crucial)
+*   `POST /login`: Authenticate or register (auto-create account).
+*   `POST /chat`: Create a new chat session.
+*   `GET /chatList`: Retrieve user's chat sessions.
+*   `GET /history`: Retrieve message history for a chat (supports paging).
+*   `POST /analyze`: Analyze intent. Requires `chat_id` in body.
+*   `POST /execute`: Execute task. Requires `chat_id` in body.
+
+## 5. MCP Integration
 - The application acts as an **MCP Client/Host**.
-- It needs a `MCPSessionManager` service.
-- It should be able to connect to local MCP servers via Stdio (Standard Input/Output).
-- **Configuration:** Use a simple `mcp_config.json` or `.env` to define which MCP servers to launch (command + args).
-- **Tool Use:** The OpenAI client must be configured to see the tools exposed by the connected MCP servers.
+- **Configuration:** `mcp_config.json` defines MCP servers (command + args).
+- **Service:** `MCPClientService` manages connections via Stdio.
 
-## 6. Development Guidelines
+## 6. Critical Operational Rules
+1.  **INSPECT BEFORE EDIT:** Before modifying ANY code or configuration file, you MUST first read the file to confirm its current state. Do not assume the content based on memory or previous turns. This prevents overwriting user-made changes.
+2.  **Minimal Changes:** When updating code, apply the principle of least disturbance. Use `replace` or targeted edits rather than full file overwrites whenever possible.
+3.  **Security:** Never commit secrets (`config.toml`, `.env`). Ensure `.gitignore` is active.
+
+## 7. Development Guidelines
 - Use `pydantic` for all data validation.
 - Use `fastapi.APIRouter` to structure endpoints.
-- Ensure the OpenAI API key is loaded from environment variables.
-- Create a dummy/mock MCP server tool logic if no real MCP server is connected yet, but the architecture must support real MCP connections.
+- Ensure the OpenAI API key is loaded from environment variables (`config.toml`).
