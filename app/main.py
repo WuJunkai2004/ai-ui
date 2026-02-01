@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from app.core.database import init_db
 from app.core.logging import setup_logging
 from app.routers import api
 from app.services.mcp_manager import mcp_service
@@ -14,6 +15,7 @@ setup_logging()
 
 
 async def startup_event():
+    init_db()
     await mcp_service.load_config_and_connect()
 
 
