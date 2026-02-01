@@ -1,6 +1,7 @@
 import json
 
 from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
 from app.core.config import settings
 from app.core.logging import logger
@@ -12,7 +13,11 @@ class OpenAIService:
         self.client = OpenAI(base_url=settings.api_base, api_key=settings.api_key)
         self.model = settings.model
 
-    def analyze_intent(self, query: str) -> UIResponse:
+    def analyze_intent(
+        self,
+        query: str,
+        history: list[ChatCompletionMessageParam] = None,  # type: ignore
+    ) -> UIResponse:
         system_prompt = """
         You are an expert AI Assistant capable of generating dynamic UIs.
         Your goal is to analyze the user's request.
@@ -35,12 +40,16 @@ class OpenAIService:
         """
 
         try:
+            messages: list[ChatCompletionMessageParam] = [
+                {"role": "system", "content": system_prompt}
+            ]
+            if history:
+                messages.extend(history)
+            messages.append({"role": "user", "content": query})
+
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": query},
-                ],
+                messages=messages,
                 temperature=settings.temperature,
                 max_tokens=settings.max_tokens,
                 # response_format={"type": "json_object"} # Uncomment if supported by provider
@@ -82,7 +91,11 @@ class OpenAIService:
             raise e
 
     def plan_execution(
-        self, original_query: str, form_data: dict, tools_desc: str
+        self,
+        original_query: str,
+        form_data: dict,
+        tools_desc: str,
+        history: list[ChatCompletionMessageParam] = None,  # type: ignore
     ) -> str:
         system_prompt = f"""
         You are an orchestration agent. You have access to the following MCP tools:
@@ -95,12 +108,27 @@ class OpenAIService:
         For this prototype, return a text description of the plan or the tool call you would make.
         """
 
+        messages: list[ChatCompletionMessageParam] = [
+            {"role": "system", "content": system_prompt}
+        ]
+
+        # Add history if provided (excluding the latest turn which is handled by system prompt context)
+        # Note: In plan_execution, 'original_query' is essentially the user's last message.
+        # But since we provide form_data and intent in system prompt, strictly speaking
+        # the history helps provide context of *prior* turns.
+        if history:
+            messages.extend(history)
+
+        messages.append(
+            {
+                "role": "user",
+                "content": "Execute the request based on the provided details.",
+            }
+        )
+
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": "Execute the request."},
-            ],
+            messages=messages,
             temperature=settings.temperature,
             max_tokens=settings.max_tokens,
         )

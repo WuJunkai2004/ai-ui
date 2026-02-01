@@ -144,6 +144,7 @@ class MCPClientService:
         if not session:
             raise ValueError(f"Session for server '{server_name}' is not active.")
 
+        logger.info(f"Executing tool '{tool_name}' on server '{server_name}'.")
         result = await session.call_tool(tool_name, arguments)
         return result
 
