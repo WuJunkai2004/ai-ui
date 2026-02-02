@@ -2,11 +2,14 @@ import json
 import os
 import shutil
 from contextlib import AsyncExitStack
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from openai.types.chat.chat_completion_tool_union_param import (
+    ChatCompletionToolUnionParam,
+)
 
 from app.core.config import settings
 from app.core.logging import logger
@@ -131,6 +134,53 @@ class MCPClientService:
 
         return "\n".join(descriptions)
 
+    async def get_openai_tools(self) -> list[ChatCompletionToolUnionParam]:
+        """
+        Returns tools in OpenAI function calling format.
+        Handles duplicate tool names by appending server name.
+        """
+        if not self.sessions:
+            await self.load_config_and_connect()
+
+        self.tools_map.clear()
+        openai_tools = []
+
+        for server_name, session in self.sessions.items():
+            try:
+                result = await session.list_tools()
+                for tool in result.tools:
+                    tool_name = tool.name
+                    
+                    # Handle naming conflicts
+                    final_name = tool_name
+                    if final_name in self.tools_map:
+                        # Conflict: rename to toolName__serverName
+                        final_name = f"{tool_name}__{server_name}"
+                        # Edge case: still conflict? (Unlikely)
+                        if final_name in self.tools_map:
+                             final_name = f"{tool_name}__{server_name}_{os.urandom(2).hex()}"
+
+                    self.tools_map[final_name] = {
+                        "server": server_name, 
+                        "tool": tool,
+                        "original_name": tool_name # Store original name for execution
+                    }
+
+                    openai_tools.append(
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": final_name,
+                                "description": f"[{server_name}] {tool.description}" if tool.description else f"Tool from {server_name}",
+                                "parameters": tool.inputSchema,
+                            },
+                        }
+                    )
+            except Exception as e:
+                logger.error(f"Error listing tools for {server_name}: {e}")
+
+        return openai_tools
+
     async def execute_tool(self, tool_name: str, arguments: dict) -> Any:
         """
         Executes a specific tool on the appropriate server.
@@ -138,14 +188,18 @@ class MCPClientService:
         if tool_name not in self.tools_map:
             raise ValueError(f"Tool '{tool_name}' not found.")
 
-        server_name = self.tools_map[tool_name]["server"]
+        tool_info = self.tools_map[tool_name]
+        server_name = tool_info["server"]
+        # Use the original tool name for the actual MCP call
+        original_name = tool_info.get("original_name", tool_name)
+        
         session = self.sessions.get(server_name)
 
         if not session:
             raise ValueError(f"Session for server '{server_name}' is not active.")
 
-        logger.info(f"Executing tool '{tool_name}' on server '{server_name}'.")
-        result = await session.call_tool(tool_name, arguments)
+        logger.info(f"Executing tool '{original_name}' (alias: {tool_name}) on server '{server_name}'.")
+        result = await session.call_tool(original_name, arguments)
         return result
 
     async def cleanup(self):

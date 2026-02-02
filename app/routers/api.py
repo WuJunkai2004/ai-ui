@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from app.core.database import Chat, Message, User
+from app.core.logging import logger
 from app.models.ui_protocol import UIResponse
 from app.services.auth import auth_service
 from app.services.llm import OpenAIService
-from app.services.mcp_manager import mcp_service
 
 router = APIRouter()
 llm_service = OpenAIService()
@@ -191,7 +191,9 @@ async def analyze_intent(
             history_context.append({"role": m.role, "content": m.content})
 
         # 4. Call LLM
-        ui_response = llm_service.analyze_intent(request.query, history=history_context)
+        ui_response = await llm_service.analyze_intent(
+            request.query, history=history_context
+        )
 
         # 5. Save Assistant Response
         Message.create(
@@ -230,12 +232,8 @@ async def execute_request(
             history_context.append({"role": m.role, "content": m.content})
 
         # 2. Call LLM
-        tools_desc = await mcp_service.get_available_tools()
-        result = llm_service.plan_execution(
-            request.original_query,
-            request.form_data,
-            tools_desc,
-            history=history_context,
+        result = await llm_service.plan_execution(
+            request.original_query, request.form_data, history=history_context
         )
 
         # 3. Save Assistant Result
@@ -243,4 +241,5 @@ async def execute_request(
 
         return {"result": result}
     except Exception as e:
+        logger.info(f"Analyze intent error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

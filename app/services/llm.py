@@ -1,20 +1,25 @@
 import json
 import re
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageParam
+from openai.types.chat.chat_completion_tool_union_param import (
+    ChatCompletionToolUnionParam,
+)
+from starlette.types import Message
 
 from app.core.config import settings
 from app.core.logging import logger
 from app.models.ui_protocol import UIResponse
+from app.services.mcp_manager import mcp_service
 
 
 class OpenAIService:
     def __init__(self):
-        self.client = OpenAI(base_url=settings.api_base, api_key=settings.api_key)
+        self.client = AsyncOpenAI(base_url=settings.api_base, api_key=settings.api_key)
         self.model = settings.model
 
-    def analyze_intent(
+    async def analyze_intent(
         self,
         query: str,
         history: list[ChatCompletionMessageParam] = None,  # type: ignore
@@ -48,7 +53,7 @@ class OpenAIService:
                 messages.extend(history)
             messages.append({"role": "user", "content": query})
 
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 stream=False,
@@ -100,22 +105,23 @@ class OpenAIService:
             # Fallback or re-raise
             raise e
 
-    def plan_execution(
+    async def plan_execution(
         self,
         original_query: str,
         form_data: dict,
-        tools_desc: str,
         history: list[ChatCompletionMessageParam] = None,  # type: ignore
     ) -> str:
-        system_prompt = f"""
-        You are an orchestration agent. You have access to the following MCP tools:
-        {tools_desc}
+        # Get tools from MCP
+        tools: list[ChatCompletionToolUnionParam] = await mcp_service.get_openai_tools()
 
+        system_prompt = f"""
+        You are an orchestration agent.
         The user wants: {original_query}
         They provided the following details: {json.dumps(form_data)}
 
-        Decide which tool to call and with what arguments.
-        For this prototype, return a text description of the plan or the tool call you would make.
+        You have access to a set of tools. Use them to fulfill the user's request.
+        If you need to search or perform actions, CALL THE TOOLS. Do not just describe what you will do.
+        Once you have the information or performed the action, provide a final answer to the user.
         """
 
         messages: list[ChatCompletionMessageParam] = [
@@ -132,16 +138,58 @@ class OpenAIService:
         messages.append(
             {
                 "role": "user",
-                "content": "Execute the request based on the provided details.",
+                "content": "Execute the request based on the provided details. Use tools if necessary.",
             }
         )
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=settings.temperature,
-            max_tokens=settings.max_tokens,
-        )
-        if not response.choices or not response.choices[0].message.content:
-            raise ValueError("LLM returned empty content for execution plan")
-        return response.choices[0].message.content
+        max_turns = 30
+        for _ in range(max_turns):
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                tools=tools if tools else [],
+                tool_choice="auto" if tools else [],
+                temperature=settings.temperature,
+                max_tokens=settings.max_tokens,
+            )
+
+            message = response.choices[0].message
+            messages.append(message)
+
+            # Check if there are tool calls
+            if message.tool_calls and hasattr(message.tool_calls, "function"):
+                logger.info(f"LLM requested {len(message.tool_calls)} tool calls")
+                for tool_call in message.tool_calls:
+                    function_name = tool_call.function.name
+                    arguments = json.loads(tool_call.function.arguments)
+
+                    logger.info(
+                        f"Executing tool: {function_name} with args: {arguments}"
+                    )
+
+                    try:
+                        # Call MCP Service
+                        result = await mcp_service.execute_tool(
+                            function_name, arguments
+                        )
+                        # Format result as string for LLM
+                        content = str(result)
+                        # Optional: limit result length if too huge
+                        if len(content) > 5000:
+                            content = content[:5000] + "...(truncated)"
+                    except Exception as e:
+                        logger.error(f"Tool execution error: {e}")
+                        content = f"Error executing tool {function_name}: {e}"
+
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": content,
+                        }
+                    )
+            else:
+                # No tool calls, meaning the model produced a final response
+                return message.content or ""
+
+        return "Execution stopped (max turns reached) without final answer."
