@@ -1,0 +1,53 @@
+:root {
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--surface-ground);
+}
+
+/* 消息气泡的特殊圆角处理 */
+.border-noround-left {
+    border-top-left-radius: 0 !important;
+}
+
+.border-noround-right {
+    border-top-right-radius: 0 !important;
+}
+
+/* 隐藏 PrimeVue 自动注入的一些默认边距 */
+.field {
+    margin-bottom: 1rem;
+}
+
+.field > label {
+    display: inline-block;
+    margin-bottom: 0.5rem;
+}
+
+/* 简单的自定义滚动条 */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+}
