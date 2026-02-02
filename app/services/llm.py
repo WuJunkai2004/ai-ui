@@ -1,4 +1,5 @@
 import json
+import re
 
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
@@ -50,18 +51,27 @@ class OpenAIService:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
+                stream=False,
                 temperature=settings.temperature,
                 max_tokens=settings.max_tokens,
                 # response_format={"type": "json_object"} # Uncomment if supported by provider
             )
 
+            if not response.choices:
+                if hasattr(response, "error_message") and getattr(
+                    response, "error_message"
+                ):
+                    error_msg = f"Provider Error: {getattr(response, 'error_message')} (Code: {getattr(response, 'error_code', 'Unknown')})"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
+
+                logger.error(f"LLM Response has no choices: {response}")
+                raise ValueError("LLM returned no choices")
+
             content = response.choices[0].message.content
 
             if not content:
                 raise ValueError("LLM returned empty content")
-
-            # 1. Strip <think> tags (common in reasoning models)
-            import re
 
             content = re.sub(
                 r"<think>.*?</think>", "", content, flags=re.DOTALL

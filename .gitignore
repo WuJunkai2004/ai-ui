@@ -12,7 +12,7 @@ wheels/
 .venv
 
 # Configuration files
-config.toml
+config.toml*
 .env
 
 # Frontend Static Assets
